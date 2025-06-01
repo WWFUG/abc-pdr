@@ -59,7 +59,11 @@ sat_solver * Pdr_ManCreateSolver( Pdr_Man_t * p, int k )
     Vec_IntPush( p->vActVars, 0 );
     // add property cone
     Saig_ManForEachPo( p->pAig, pObj, i )
+    {
+        if(p->pPars->fSymInit && i==0) // skip the first PO in symbolic initial state mode
+            continue;
         Pdr_ObjSatVar( p, k, 1, pObj );
+    }
     return pSat;
 }
 
@@ -191,6 +195,9 @@ void Pdr_ManSetPropertyOutput( Pdr_Man_t * p, int k )
             continue;
         // skip timedout outputs
         if ( p->pPars->vOutMap && Vec_IntEntry(p->pPars->vOutMap, i) == -1 )
+            continue;
+        // skip the first PO in symbolic initial state mode
+        if (p->pPars->fSymInit && i==0)
             continue;
         Lit = Abc_Var2Lit( Pdr_ObjSatVar(p, k, 1, pObj), 1 ); // neg literal
         RetValue = sat_solver_addclause( pSat, &Lit, &Lit + 1 );

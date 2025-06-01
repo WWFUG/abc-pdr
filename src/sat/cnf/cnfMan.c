@@ -565,6 +565,105 @@ void * Cnf_DataWriteIntoSolverInt( void * pSolver, Cnf_Dat_t * p, int nFrames, i
     return pSat;
 }
 
+
+/**Function*************************************************************
+
+  Synopsis    [Writes CNF into a file.]
+
+  Description [Assume symbolic initial state is represented by the first PO of the AIG.]
+               
+  SideEffects []
+
+  SeeAlso     []
+
+***********************************************************************/
+void * Cnf_DataWriteIntoSolverInt2( void * pSolver, Cnf_Dat_t * p, int nFrames, int fInit )
+{
+    sat_solver * pSat = (sat_solver *)pSolver;
+    int i, f, status;
+    assert( nFrames > 0 );
+    assert( pSat );
+//    pSat = sat_solver_new();
+    sat_solver_setnvars( pSat, p->nVars * nFrames );
+    for ( i = 0; i < p->nClauses; i++ )
+    {
+        if ( !sat_solver_addclause( pSat, p->pClauses[i], p->pClauses[i+1] ) )
+        {
+            sat_solver_delete( pSat );
+            return NULL;
+        }
+    }
+    if ( nFrames > 1 )
+    {
+        Aig_Obj_t * pObjLo, * pObjLi;
+        int nLitsAll, * pLits, Lits[2];
+        nLitsAll = 2 * p->nVars;
+        pLits = p->pClauses[0];
+        for ( f = 1; f < nFrames; f++ )
+        {
+            // add equality of register inputs/outputs for different timeframes
+            Aig_ManForEachLiLoSeq( p->pMan, pObjLi, pObjLo, i )
+            {
+                Lits[0] = (f-1)*nLitsAll + toLitCond( p->pVarNums[pObjLi->Id], 0 );
+                Lits[1] =  f   *nLitsAll + toLitCond( p->pVarNums[pObjLo->Id], 1 );
+                if ( !sat_solver_addclause( pSat, Lits, Lits + 2 ) )
+                {
+                    sat_solver_delete( pSat );
+                    return NULL;
+                }
+                Lits[0]++;
+                Lits[1]--;
+                if ( !sat_solver_addclause( pSat, Lits, Lits + 2 ) )
+                {
+                    sat_solver_delete( pSat );
+                    return NULL;
+                }
+            }
+            // add clauses for the next timeframe
+            for ( i = 0; i < p->nLiterals; i++ )
+                pLits[i] += nLitsAll;
+            for ( i = 0; i < p->nClauses; i++ )
+            {
+                if ( !sat_solver_addclause( pSat, p->pClauses[i], p->pClauses[i+1] ) )
+                {
+                    sat_solver_delete( pSat );
+                    return NULL;
+                }
+            }
+        }
+        // return literals to their original state
+        nLitsAll = (f-1) * nLitsAll;
+        for ( i = 0; i < p->nLiterals; i++ )
+            pLits[i] -= nLitsAll;
+    }
+    if ( fInit )
+    {
+        // add the unit clause for the first PO
+        Aig_Obj_t* pObjPo;
+        int Lits[1];
+        Saig_ManForEachPo( p->pMan, pObjPo, i )
+        {
+            if ( i == 0 ) // symbolic initial state
+            {
+                Lits[0] = toLitCond( p->pVarNums[pObjPo->Id], 0);
+                if ( !sat_solver_addclause( pSat, Lits, Lits + 1 ) )
+                {
+                    sat_solver_delete( pSat );
+                    return NULL;
+                }
+                break;
+            }
+        }
+    }
+    status = sat_solver_simplify(pSat);
+    if ( status == 0 )
+    {
+        sat_solver_delete( pSat );
+        return NULL;
+    }
+    return pSat;
+}
+
 /**Function*************************************************************
 
   Synopsis    [Writes CNF into a file.]

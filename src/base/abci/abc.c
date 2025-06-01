@@ -31765,7 +31765,7 @@ int Abc_CommandPdr( Abc_Frame_t * pAbc, int argc, char ** argv )
     int c;
     Pdr_ManSetDefaultParams( pPars );
     Extra_UtilGetoptReset();
-    while ( ( c = Extra_UtilGetopt( argc, argv, "MFCDQTHGSLIaxrmuyfqipdegjonctkvwzhb" ) ) != EOF )
+    while ( ( c = Extra_UtilGetopt( argc, argv, "MFCDQTHGSLIaxrmuyfqipdegjonctkvwzhbsl" ) ) != EOF )
     {
         switch ( c )
         {
@@ -31955,6 +31955,12 @@ int Abc_CommandPdr( Abc_Frame_t * pAbc, int argc, char ** argv )
         case 'b':
             pPars->fBlocking ^= 1;
             break;
+        case 's':
+            pPars->fSymInit ^= 1;
+            break;
+        case 'l':
+            pPars->fRefineInit ^= 1;
+            break;
         case 'h':
         default:
             goto usage;
@@ -31980,6 +31986,18 @@ int Abc_CommandPdr( Abc_Frame_t * pAbc, int argc, char ** argv )
         pNtkFlop = Abc_NtkDup( pNtk );
         Abc_NtkAddLatch( pNtkFlop, Abc_AigConst1(pNtkFlop), ABC_INIT_ONE );
     }
+    if (pPars->fSymInit)
+    {
+        if (!pPars->fMonoCnf){
+            Abc_Print( -2, "The option \"-m\" for using monolythic CNF must be used when using symbolic initial state option.\n" );
+            goto usage;
+        }
+        // if (pPars->fSolveAll){
+        //     Abc_Print( -2, "The option \"-a\" for solving all outputs is not supported for symbolic initial state right now.\n" );
+        //     goto usage;
+        // }
+    }
+
     // run the procedure
     pPars->fUseBridge = pAbc->fBridgeMode;
     pNtkUsed = pNtkFlop ? pNtkFlop : pNtk;
@@ -32034,6 +32052,8 @@ usage:
     Abc_Print( -2, "\t-w     : toggle printing detailed stats default = %s]\n",                              pPars->fVeryVerbose? "yes": "no" );
     Abc_Print( -2, "\t-z     : toggle suppressing report about solved outputs [default = %s]\n",             pPars->fNotVerbose? "yes": "no" );
     Abc_Print( -2, "\t-b     : toggle clause pushing with blocking [default = %s]\n",                        pPars->fBlocking? "yes": "no" );
+    Abc_Print( -2, "\t-s     : toggle using symbolic initial state, assuming the first PO is the initial state and the second one is the property. Must come with -m [default = %s]\n", pPars->fBlocking? "yes": "no" );
+    Abc_Print( -2, "\t-l     : toggle refine initial state until property is proven symbolic [default = %s]\n", pPars->fRefineInit? "yes": "no" );
     Abc_Print( -2, "\t-h     : print the command usage\n\n");
     Abc_Print( -2, "\t* Implementation of switches -S, -n, and -c is contributed by Zyad Hassan.\n");
     Abc_Print( -2, "\t  The theory and experiments supporting this work can be found in the following paper:\n");

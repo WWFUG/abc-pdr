@@ -75,6 +75,8 @@ void Pdr_ManSetDefaultParams( Pdr_Par_t * pPars )
     pPars->fVerbose       =       0;  // verbose output
     pPars->fVeryVerbose   =       0;  // very verbose output
     pPars->fNotVerbose    =       0;  // not printing line-by-line progress
+    pPars->fSymInit       =       0;  // perform PDR with symbolic initial state
+    pPars->fRefineInit    =       0;  // refine symbolic initial state until property is proven
     pPars->iFrame         =      -1;  // explored up to this frame
     pPars->nFailOuts      =       0;  // the number of disproved outputs
     pPars->nDropOuts      =       0;  // the number of timed out outputs
@@ -1405,6 +1407,10 @@ int Pdr_ManSolveInt( Pdr_Man_t * p )
     // in the multi-output mode, mark trivial POs (those fed by const0) as solved 
     if ( p->pPars->fSolveAll )
         Saig_ManForEachPo( p->pAig, pObj, iFrame )
+        {
+            // skip the first PO in symbolic initial state mode
+            if ( p->pPars->fSymInit && iFrame == 0 )
+                continue;
             if ( Aig_ObjChild0(pObj) == Aig_ManConst0(p->pAig) )
             {
                 Vec_IntWriteEntry( p->pPars->vOutMap, iFrame, 1 ); // unsat
@@ -1412,6 +1418,7 @@ int Pdr_ManSolveInt( Pdr_Man_t * p )
                 if ( p->pPars->fUseBridge )
                     Gia_ManToBridgeResult( stdout, 1, NULL, iFrame );
             }
+        }
     // create the first timeframe
     p->pPars->timeLastSolved = Abc_Clock();
     Pdr_ManCreateSolver( p, (iFrame = 0) );
@@ -1441,6 +1448,9 @@ int Pdr_ManSolveInt( Pdr_Man_t * p )
                 continue;
             // skip output whose time has run out
             if ( p->pTime4Outs && p->pTime4Outs[p->iOutCur] == 0 )
+                continue;
+            // skip the first output in symbolic initial state mode
+            if ( p->pPars->fSymInit && p->iOutCur == 0 )
                 continue;
             // check if the output is trivially solved
             if ( Aig_ObjChild0(pObj) == Aig_ManConst0(p->pAig) )

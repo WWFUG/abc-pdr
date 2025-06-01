@@ -74,6 +74,8 @@ struct Pdr_Par_t_
     int fStoreCex;        // enable storing counter-examples in MO mode
     int fUseBridge;       // use bridge interface
     int fUsePropOut;      // use property output
+    int fSymInit;         // perform PDR with symbolic intial state
+    int fRefineInit;      // when found a counter-example, refine the symbolic intiial state untill property is proven.
     int nFailOuts;        // the number of failed outputs
     int nDropOuts;        // the number of timed out outputs
     int nProveOuts;       // the number of proved outputs
