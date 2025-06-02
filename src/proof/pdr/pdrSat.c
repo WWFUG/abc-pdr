@@ -369,7 +369,7 @@ int Pdr_ManCheckCube( Pdr_Man_t * p, int k, Pdr_Set_t * pCube, Pdr_Set_t ** ppPr
         {
             abctime clk = Abc_Clock();
             if ( p->pPars->fNewXSim )
-                *ppPred = Txs3_ManTernarySim( p->pTxs3, k, pCube );
+                *ppPred = Txs3_ManTernarySim( p->pTxs3, k, pCube, p);
             else
                 *ppPred = Pdr_ManTernarySim( p, k, pCube );
             p->tTsim += Abc_Clock() - clk;

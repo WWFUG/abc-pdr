@@ -108,6 +108,17 @@ Pdr_Set_t * Pdr_ManReduceClause( Pdr_Man_t * p, int k, Pdr_Set_t * pCube )
     // skip if there is no improvement
     if ( Vec_IntSize(vLits) == pCube->nLits )
         return NULL;
+    if ( p->pPars->fSymInit ) 
+    {
+        pCubeMin  = Pdr_SetCreateSubset( pCube, Vec_IntArray(vLits), Vec_IntSize(vLits) );
+        // also skip if using symbolic initial state and the unsat core cube intersects with init
+        if ( Pdr_SetIsInit(pCubeMin, p, -1) == 1 )
+            return NULL;
+        else 
+        {
+            return pCubeMin;
+        }
+    }
     assert( Vec_IntSize(vLits) < pCube->nLits );
     // if the cube overlaps with init, add any literal
     Vec_IntForEachEntry( vLits, Entry, i )
@@ -126,7 +137,7 @@ Pdr_Set_t * Pdr_ManReduceClause( Pdr_Man_t * p, int k, Pdr_Set_t * pCube )
     }
     // generate a starting cube
     pCubeMin  = Pdr_SetCreateSubset( pCube, Vec_IntArray(vLits), Vec_IntSize(vLits) );
-    assert( !Pdr_SetIsInit(pCubeMin, -1) );
+    assert( Pdr_SetIsInit(pCubeMin, p, -1)==0 );
 /*
     // make sure the cube works
     {
@@ -472,8 +483,12 @@ int ZPdr_ManSimpleMic( Pdr_Man_t * p, int k, Pdr_Set_t ** ppCube )
 
         assert( (*ppCube)->Lits[i] != -1 );
         // check init state
-        if ( Pdr_SetIsInit(*ppCube, i) )
+        RetValue = Pdr_SetIsInit(*ppCube, p, i);
+        if (RetValue == -1)
+            return -1;
+        if (RetValue == 1)
             continue;
+        
         // try removing this literal
         Lit = (*ppCube)->Lits[i]; (*ppCube)->Lits[i] = -1; 
         RetValue = Pdr_ManCheckCube( p, k, *ppCube, NULL, p->pPars->nConfLimit, 0, 1 );
@@ -520,7 +535,10 @@ int ZPdr_ManDown( Pdr_Man_t * p, int k, Pdr_Set_t ** ppCube, Pdr_Set_t * pPred, 
         {
             pCtg = Pdr_SetDup( pPred );
             //Check CTG for inductiveness
-            if ( Pdr_SetIsInit( pCtg, -1 ) )
+            RetValue = Pdr_SetIsInit(pCtg, p, -1);
+            if ( RetValue == -1 )
+                return -1;
+            if ( RetValue == 1 )
             {
                 Pdr_SetDeref( pCtg );
                 break;
@@ -599,7 +617,10 @@ int ZPdr_ManDown( Pdr_Man_t * p, int k, Pdr_Set_t ** ppCube, Pdr_Set_t * pPred, 
             printf("Intersection:\n");
             ZPdr_SetPrint( *ppCube );
         }
-        if ( Pdr_SetIsInit( *ppCube, -1 ) )
+        RetValue = Pdr_SetIsInit( *ppCube, p, -1 );
+        if ( RetValue == -1 )
+            return -1;
+        if ( RetValue == 1 )
         {
             if ( p->pPars->fVeryVerbose )
                 printf ("Failed initiation\n");
@@ -640,7 +661,13 @@ int ZPdr_ManDown_Exhaustive( Pdr_Man_t * p, int k, Pdr_Set_t ** ppCube, Pdr_Set_
         {   
             pCtg = Pdr_SetDup( pPredTmp );
             //Check CTG for inductiveness
-            if ( Pdr_SetIsInit( pCtg, -1 ) )
+            RetValue = Pdr_SetIsInit(pCtg, p, -1);
+            if (RetValue == -1)
+            {
+                Pdr_SetDeref(pCtg);
+                return -1;
+            }
+            if (RetValue == 1 )
             {
                 Pdr_SetDeref( pCtg );
                 break;
@@ -815,7 +842,10 @@ int ZPdr_ManDown_Exhaustive( Pdr_Man_t * p, int k, Pdr_Set_t ** ppCube, Pdr_Set_
             printf("Intersection:\n");
             ZPdr_SetPrint( *ppCube );
         }
-        if ( Pdr_SetIsInit( *ppCube, -1 ) )
+        RetValue = Pdr_SetIsInit( *ppCube, p, -1 );
+        if ( RetValue == -1)
+            return -1;
+        if ( RetValue == 1 )
         {
             if ( p->pPars->fVeryVerbose )
                 printf ("Failed initiation\n");
@@ -1118,8 +1148,16 @@ int Pdr_ManGeneralize( Pdr_Man_t * p, int k, Pdr_Set_t * pCube, Pdr_Set_t ** ppP
             }
 
             // check init state
-            if ( Pdr_SetIsInit(pCubeMin, i) )
+            RetValue = Pdr_SetIsInit(pCubeMin, p, i);
+            if ( RetValue == -1 )
+            {
+                Pdr_SetDeref( pCubeMin );
+                return -1;
+            }
+            if ( RetValue == 1 )
+            {
                 continue;
+            }
 
             // try removing this literal
             Lit = pCubeMin->Lits[i]; pCubeMin->Lits[i] = -1; 
@@ -1197,8 +1235,16 @@ int Pdr_ManGeneralize( Pdr_Man_t * p, int k, Pdr_Set_t * pCube, Pdr_Set_t ** ppP
 
             // check init state
             assert( pCubeMin->Lits[i] != -1 );
-            if ( Pdr_SetIsInit(pCubeMin, i) )
+            RetValue = Pdr_SetIsInit(pCubeMin, p, i);
+            if ( RetValue == -1 )
+            {
+                Pdr_SetDeref( pCubeMin );
+                return -1;
+            }
+            if ( RetValue == 1 )
+            {
                 continue;
+            }
             // try removing this literal
             Lit = pCubeMin->Lits[i]; pCubeMin->Lits[i] = -1; 
             RetValue = Pdr_ManCheckCube( p, k, pCubeMin, NULL, p->pPars->nConfLimit, 0, 1 );
@@ -1264,7 +1310,13 @@ int Pdr_ManBlockCube( Pdr_Man_t * p, Pdr_Set_t * pCube )
     {
         Counter++;
         pThis = Pdr_QueueHead( p );
-        if ( pThis->iFrame == 0 || (p->pPars->fUseAbs && Pdr_SetIsInit(pThis->pState, -1)) )
+        RetValue = Pdr_SetIsInit(pThis->pState, p, -1);
+        if ( RetValue == -1 )
+        {
+            Pdr_OblDeref( pThis );
+            return -1; // resource limit is reached
+        }
+        if ( pThis->iFrame == 0 || (p->pPars->fUseAbs && RetValue) )
             return 0; // SAT
         if ( pThis->iFrame > kMax ) // finished this level
             return 1;
@@ -1276,7 +1328,7 @@ int Pdr_ManBlockCube( Pdr_Man_t * p, Pdr_Set_t * pCube )
         }
         pThis = Pdr_QueuePop( p );
         assert( pThis->iFrame > 0 );
-        assert( !Pdr_SetIsInit(pThis->pState, -1) );
+        assert( Pdr_SetIsInit(pThis->pState, p, -1)==0 );
         p->iUseFrame = Abc_MinInt( p->iUseFrame, pThis->iFrame );
         clk = Abc_Clock();
         if ( Pdr_ManCheckContainment( p, pThis->iFrame, pThis->pState ) )

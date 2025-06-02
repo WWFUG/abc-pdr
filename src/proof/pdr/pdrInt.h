@@ -235,7 +235,7 @@ extern Pdr_Set_t *     Txs_ManTernarySim( Txs_Man_t * p, int k, Pdr_Set_t * pCub
 /*=== pdrTsim3.c ==========================================================*/
 extern Txs3_Man_t *    Txs3_ManStart( Pdr_Man_t * pMan, Aig_Man_t * pAig, Vec_Int_t * vPrio );
 extern void            Txs3_ManStop( Txs3_Man_t * );
-extern Pdr_Set_t *     Txs3_ManTernarySim( Txs3_Man_t * p, int k, Pdr_Set_t * pCube );
+extern Pdr_Set_t *     Txs3_ManTernarySim( Txs3_Man_t * p, int k, Pdr_Set_t * pCube, Pdr_Man_t * pMan);
 /*=== pdrUtil.c ==========================================================*/
 extern Pdr_Set_t *     Pdr_SetAlloc( int nSize );
 extern Pdr_Set_t *     Pdr_SetCreate( Vec_Int_t * vLits, Vec_Int_t * vPiLits );
@@ -247,7 +247,7 @@ extern void            Pdr_SetDeref( Pdr_Set_t * p );
 extern Pdr_Set_t *     ZPdr_SetIntersection( Pdr_Set_t * p1, Pdr_Set_t * p2, Hash_Int_t * keep );
 extern int             Pdr_SetContains( Pdr_Set_t * pOld, Pdr_Set_t * pNew );
 extern int             Pdr_SetContainsSimple( Pdr_Set_t * pOld, Pdr_Set_t * pNew );
-extern int             Pdr_SetIsInit( Pdr_Set_t * p, int iRemove );
+extern int             Pdr_SetIsInit( Pdr_Set_t * pCube, Pdr_Man_t * p, int iRemove );
 extern int             ZPdr_SetIsInit( Pdr_Set_t * p );
 extern void            Pdr_SetPrint( FILE * pFile, Pdr_Set_t * p, int nRegs, Vec_Int_t * vFlopCounts );
 extern void            ZPdr_SetPrint( Pdr_Set_t * p );

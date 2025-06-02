@@ -185,7 +185,7 @@ printf( "%d %d %d \n", Vec_IntSize(p->vCiObjs), Vec_IntSize(p->vFosPre), Vec_Int
   SeeAlso     []
 
 ***********************************************************************/
-Pdr_Set_t * Txs3_ManTernarySim( Txs3_Man_t * p, int k, Pdr_Set_t * pCube )
+Pdr_Set_t * Txs3_ManTernarySim( Txs3_Man_t * p, int k, Pdr_Set_t * pCube, Pdr_Man_t * pMan)
 {
 //    int fTryNew = 1;
 //    int fUseLit = 1;
@@ -349,7 +349,7 @@ p->pMan->tAbs += Abc_Clock() - clk;
     pRes = Pdr_SetCreate( p->vFfLits, p->vPiLits );
     //ZH: Disabled assertion because this invariant doesn't hold with down
     //because of the join operation which can bring in initial states
-    assert( k == 0 || !Pdr_SetIsInit(pRes, -1) );
+    assert( k == 0 || Pdr_SetIsInit(pRes, pMan, -1) == 0 );
     return pRes;
 }
 

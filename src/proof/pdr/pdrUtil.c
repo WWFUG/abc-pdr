@@ -448,7 +448,7 @@ int Pdr_SetContainsSimple( Pdr_Set_t * pOld, Pdr_Set_t * pNew )
 
 /**Function*************************************************************
 
-  Synopsis    [Return 1 if the state cube contains init state (000...0).]
+  Synopsis    [Return 1 if the state cube intersects init state]
 
   Description []
                
@@ -457,18 +457,47 @@ int Pdr_SetContainsSimple( Pdr_Set_t * pOld, Pdr_Set_t * pNew )
   SeeAlso     []
 
 ***********************************************************************/
-int Pdr_SetIsInit( Pdr_Set_t * pCube, int iRemove )
+int Pdr_SetIsInit( Pdr_Set_t * pCube, Pdr_Man_t * p,  int iRemove )
 {
-    int i;
-    for ( i = 0; i < pCube->nLits; i++ )
+    int i, iVar, iVarMax = 0;
+    sat_solver * pSat;
+    Aig_Obj_t * pObj;
+    abctime Limit;
+    Vec_Int_t * vLits = Vec_IntAlloc( 10 );
+    int RetValue;
+    if (p->pPars->fSymInit) // symbolic initial state
     {
-        assert( pCube->Lits[i] != -1 );
-        if ( i == iRemove )
-            continue;
-        if ( Abc_LitIsCompl( pCube->Lits[i] ) == 0 )
-            return 0;
+        // use SAT checking to check if R0 intersects with the cube
+        for ( i = 0; i < pCube->nLits; i++)
+        {
+            if ( pCube->Lits[i] == -1 || (i == iRemove) )
+                continue;
+            pObj = Saig_ManLo( p->pAig, Abc_Lit2Var(pCube->Lits[i]) );
+            iVar = Pdr_ObjSatVar( p, 0, 3, pObj ); assert( iVar >= 0 );
+            iVarMax = Abc_MaxInt( iVarMax, iVar );
+            Vec_IntPush( vLits, Abc_Var2Lit( iVar, Abc_LitIsCompl(pCube->Lits[i]) ) );
+        }
+        pSat = Pdr_ManFetchSolver( p, 0 );
+        Limit = sat_solver_set_runtime_limit( pSat, Pdr_ManTimeLimit(p) );
+        RetValue = sat_solver_solve( pSat, Vec_IntArray(vLits), Vec_IntArray(vLits) + Vec_IntSize(vLits), 0, 0, 0, 0 );
+        sat_solver_set_runtime_limit( pSat, Limit );
+        if ( RetValue == l_Undef )
+            return -1;
+        return RetValue == l_True;
     }
-    return 1;
+    else
+    {
+        // assume all zeros initial state
+        for ( i = 0; i < pCube->nLits; i++ )
+        {
+            assert( pCube->Lits[i] != -1 );
+            if ( i == iRemove )
+                continue;
+            if ( Abc_LitIsCompl( pCube->Lits[i] ) == 0 )
+                return 0;
+        }
+        return 1;
+    }
 }
 
 /**Function*************************************************************
