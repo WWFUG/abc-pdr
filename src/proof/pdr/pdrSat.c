@@ -64,6 +64,12 @@ sat_solver * Pdr_ManCreateSolver( Pdr_Man_t * p, int k )
             continue;
         Pdr_ObjSatVar( p, k, 1, pObj );
     }
+
+    // set/unset reset inputs
+    if ( p->pPars->fRefineInit ){
+        Pdr_ManSetUnsetRstInput( p, k );
+    }
+
     return pSat;
 }
 
@@ -100,6 +106,9 @@ sat_solver * Pdr_ManFetchSolver( Pdr_Man_t * p, int k )
     Vec_IntWriteEntry( p->vActVars, k, 0 );
     // set the property output
     Pdr_ManSetPropertyOutput( p, k );
+    // set the reset input
+    if (p->pPars->fSymInit)
+        Pdr_ManSetUnsetRstInput( p, k );
     // add the clauses
     Vec_VecForEachLevelStart( p->vClauses, vArrayK, i, k )
         Vec_PtrForEachEntry( Pdr_Set_t *, vArrayK, pCube, j )
@@ -203,6 +212,32 @@ void Pdr_ManSetPropertyOutput( Pdr_Man_t * p, int k )
         RetValue = sat_solver_addclause( pSat, &Lit, &Lit + 1 );
         assert( RetValue == 1 );
     }
+    sat_solver_compress( pSat );
+}
+
+/**Function*************************************************************
+
+  Synopsis    [Sets the reset signals (assuming to be the first input) to be 1 for k=0 and 0 otherwise.]
+
+  Description []
+               
+  SideEffects []
+
+  SeeAlso     []
+
+***********************************************************************/
+void Pdr_ManSetUnsetRstInput( Pdr_Man_t * p, int k )
+{
+    sat_solver * pSat;
+    Aig_Obj_t * pObj;
+    int Lit, RetValue;
+    if ( !p->pPars->fRefineInit )
+        return;
+    pSat = Pdr_ManSolver(p, k);
+    pObj = Aig_ManCi( p->pAig, 0 ); // assuming the first PI is the reset signal
+    Lit = Abc_Var2Lit( Pdr_ObjSatVar(p, k, 1, pObj), (k == 0) ); // pos literal if k=0, neg otherwise
+    RetValue = sat_solver_addclause( pSat, &Lit, &Lit + 1 );
+    assert(RetValue == 1);
     sat_solver_compress( pSat );
 }
 

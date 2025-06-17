@@ -31765,7 +31765,7 @@ int Abc_CommandPdr( Abc_Frame_t * pAbc, int argc, char ** argv )
     int c;
     Pdr_ManSetDefaultParams( pPars );
     Extra_UtilGetoptReset();
-    while ( ( c = Extra_UtilGetopt( argc, argv, "MFCDQTHGSLIaxrmuyfqipdegjonctkvwzhbsl" ) ) != EOF )
+    while ( ( c = Extra_UtilGetopt( argc, argv, "MFCDQTHGSLIKaxrmuyfqipdegjonctkvwzhbsl" ) ) != EOF )
     {
         switch ( c )
         {
@@ -31884,6 +31884,15 @@ int Abc_CommandPdr( Abc_Frame_t * pAbc, int argc, char ** argv )
                 goto usage;
             }
             pPars->pInvFileName = argv[globalUtilOptind];
+            globalUtilOptind++;
+            break;
+        case 'K':
+            if ( globalUtilOptind >= argc )
+            {
+                Abc_Print( -1, "Command line switch \"-k\" should be followed by a file name.\n" );
+                goto usage;
+            }
+            pPars->pISAInfoFileName = argv[globalUtilOptind];
             globalUtilOptind++;
             break;
         case 'a':
@@ -32029,6 +32038,7 @@ usage:
     Abc_Print( -2, "\t-S num : * value to seed the SAT solver with [default = %d]\n",                          pPars->nRandomSeed );
     Abc_Print( -2, "\t-L file: the log file name [default = %s]\n",                                          pLogFileName ? pLogFileName : "no logging" );
     Abc_Print( -2, "\t-I file: the invariant file name [default = %s]\n",                                    pPars->pInvFileName ? pPars->pInvFileName : "default name" );
+    Abc_Print( -2, "\t-K file: the ISA information file name [default = %s]\n",                              pPars->pISAInfoFileName ? pPars->pISAInfoFileName : "default name" );
     Abc_Print( -2, "\t-a     : toggle solving all outputs even if one of them is SAT [default = %s]\n",      pPars->fSolveAll? "yes": "no" );
     Abc_Print( -2, "\t-x     : toggle storing CEXes when solving all outputs [default = %s]\n",              pPars->fStoreCex? "yes": "no" );
     Abc_Print( -2, "\t-r     : toggle using more effort in generalization [default = %s]\n",                 pPars->fTwoRounds? "yes": "no" );

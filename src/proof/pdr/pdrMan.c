@@ -236,6 +236,63 @@ Vec_Int_t * Pdr_ManDeriveFlopPriorities2( Gia_Man_t * p, int fMuxCtrls )
 
 /**Function*************************************************************
 
+  Synopsis    [Read the ISA information file.]
+
+  Description []
+               
+  SideEffects []
+
+  SeeAlso     []
+
+***********************************************************************/
+
+int Pdr_ManReadISAInfo(Pdr_Man_t* p, char* pFileName){
+    FILE *pFile = fopen(pFileName, "r");
+    if (pFile == NULL) {
+        Abc_Print(-1, "Cannot open the ISA information file \"%s\".\n", pFileName);
+        return -1;
+    }
+    char buffer[1000];
+    int latch, copy, pi, inst;
+    int maxInst = -1;
+    int maxBitInInst = -1;
+    p->vReg2Copy = Vec_IntStart( Aig_ManRegNum(p->pAig) );
+    p->vReg2PI = Vec_IntStart( Aig_ManRegNum(p->pAig) );
+    p->vReg2Inst = Vec_IntStart( Aig_ManRegNum(p->pAig) );
+
+    if (fgets(buffer, sizeof(buffer), pFile) == NULL) {
+        Abc_Print(-1, "ISA info file \"%s\" is empty.\n", pFileName);
+        fclose(pFile);
+        return -1;
+    }
+
+    while (fgets(buffer, sizeof(buffer), pFile)) {
+        if (sscanf(buffer, "%d %d %d %d", &latch, &copy, &pi, &inst) != 4) {
+            Abc_Print(-1, "Bad format in ISA info file: %s", buffer);
+            continue;
+        }
+
+        if (inst >= 0 && inst > maxInst)
+            maxInst = inst;
+        if (inst >= 0 && pi >= 0 && pi > maxBitInInst)
+            maxBitInInst = pi;
+
+        Vec_IntWriteEntry(p->vReg2Copy, latch, copy);
+        Vec_IntWriteEntry(p->vReg2PI, latch, pi);
+        Vec_IntWriteEntry(p->vReg2Inst, latch, inst);
+    }
+
+    fclose(pFile);
+
+    p->nInsts = maxInst + 1;
+    p->instLen = maxBitInInst + 1;
+
+    return 0;
+}
+
+
+/**Function*************************************************************
+
   Synopsis    [Creates manager.]
 
   Description []
@@ -301,6 +358,15 @@ Pdr_Man_t * Pdr_ManStart( Aig_Man_t * pAig, Pdr_Par_t * pPars, Vec_Int_t * vPrio
         p->pPars->vOutMap = Vec_IntAlloc( Saig_ManPoNum(pAig) );
         Vec_IntFill( p->pPars->vOutMap, Saig_ManPoNum(pAig), -2 );
     }
+
+    if ( pPars->pISAInfoFileName) {
+        if ( Pdr_ManReadISAInfo(p, pPars->pISAInfoFileName)==-1 )
+        {
+            Pdr_ManStop( p );
+            return NULL;
+        }
+    }
+
     return p;
 }
 
@@ -383,6 +449,9 @@ void Pdr_ManStop( Pdr_Man_t * p )
     Vec_IntFree( p->vCi2Rem   );  // CIs to be removed
     Vec_IntFree( p->vRes      );  // final result
     Vec_PtrFreeP( &p->vInfCubes );
+    Vec_IntFree( p->vReg2Copy );
+    Vec_IntFree( p->vReg2PI   );
+    Vec_IntFree( p->vReg2Inst );
     ABC_FREE( p->pTime4Outs );
     if ( p->vCexes )
         Vec_PtrFreeFree( p->vCexes );

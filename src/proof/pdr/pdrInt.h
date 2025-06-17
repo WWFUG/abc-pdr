@@ -172,6 +172,14 @@ struct Pdr_Man_t_
     abctime     tCnf;
     abctime     tAbs;
     abctime     tTotal;
+
+
+    // Self composition and ISA information for Contract Property
+    Vec_Int_t*  vReg2Copy; // maps register to copy id in self composition, assuming 2 copies for now
+    Vec_Int_t*  vReg2PI;   // maps register to its corresponding PI id representing its abstracted value. Only imem registers have this for now.
+    Vec_Int_t*  vReg2Inst; // maps register to the imem instruction id/PC.
+    int         nInsts;    // number of imem instructions
+    int         instLen;   // length of each imem instruction in bits  
 };
 
 ////////////////////////////////////////////////////////////////////////
@@ -220,6 +228,7 @@ extern Abc_Cex_t *     Pdr_ManDeriveCexAbs( Pdr_Man_t * p );
 extern sat_solver *    Pdr_ManCreateSolver( Pdr_Man_t * p, int k );
 extern sat_solver *    Pdr_ManFetchSolver( Pdr_Man_t * p, int k );
 extern void            Pdr_ManSetPropertyOutput( Pdr_Man_t * p, int k );
+extern void            Pdr_ManSetUnsetRstInput( Pdr_Man_t * p, int k );
 extern Vec_Int_t *     Pdr_ManCubeToLits( Pdr_Man_t * p, int k, Pdr_Set_t * pCube, int fCompl, int fNext );
 extern Vec_Int_t *     Pdr_ManLitsToCube( Pdr_Man_t * p, int k, int * pArray, int nArray );
 extern void            Pdr_ManSolverAddClause( Pdr_Man_t * p, int k, Pdr_Set_t * pCube );

@@ -83,6 +83,7 @@ void Pdr_ManSetDefaultParams( Pdr_Par_t * pPars )
     pPars->timeLastSolved =       0;  // last one solved
     pPars->pInvFileName   =    NULL;  // invariant file name
     pPars->fBlocking      =       0;  // clause pushing with blocking
+    pPars->pISAInfoFileName =  NULL;  // ISA information file name
 }
 
 /**Function*************************************************************
@@ -1559,7 +1560,7 @@ int Pdr_ManSolveInt( Pdr_Man_t * p )
                     return -1;
                 }
                 RetValue = Pdr_ManCheckCube( p, iFrame, NULL, &pCube, p->pPars->nConfLimit, 0, 1 );
-                if ( RetValue == 1 )
+                if ( RetValue == 1 ) // UNSAT, property hold for the current timeframe iFrame
                     break;
                 if ( RetValue == -1 )
                 {
@@ -1582,7 +1583,7 @@ int Pdr_ManSolveInt( Pdr_Man_t * p )
                     p->pPars->iFrame = iFrame;
                     return -1;
                 }
-                if ( RetValue == 0 )
+                if ( RetValue == 0 ) // SAT, found a cex at iFrame to be blocked
                 {
                     RetValue = Pdr_ManBlockCube( p, pCube );
                     if ( RetValue == -1 )
@@ -1606,7 +1607,7 @@ int Pdr_ManSolveInt( Pdr_Man_t * p )
                         p->pPars->iFrame = iFrame;
                         return -1;
                     }
-                    if ( RetValue == 0 )
+                    if ( RetValue == 0 ) // cannot be blocked, derive cex
                     {
                         if ( fPrintClauses )
                         {
@@ -1618,6 +1619,13 @@ int Pdr_ManSolveInt( Pdr_Man_t * p )
                         p->pPars->iFrame = iFrame;
                         if ( !p->pPars->fSolveAll )
                         {
+                            // Handle fRefineInit flags here
+                            // 1. extract the cube state at timeframe 1, which corresponds to the generalized unsafe program
+                            // 2. transform the cube C into C_I in terms of its corresdponding PIs
+                            // 3. store the C_I in Pdr_Man_t
+                            // 4. block the C_I on PIs of the traisition system by adding clauses
+                            // 5. This ensure that the cube at timeframe 1 is blocked and we need to backtrack to the proof obligation 
+                            // at timeframe 2 to see if there is any frame 1 predicessors (generalized unsafe program)
                             abctime clk = Abc_Clock();
                             Abc_Cex_t * pCex = Pdr_ManDeriveCexAbs(p);
                             p->tAbs += Abc_Clock() - clk;
