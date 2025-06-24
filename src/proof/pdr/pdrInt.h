@@ -178,8 +178,12 @@ struct Pdr_Man_t_
     Vec_Int_t*  vReg2Copy; // maps register to copy id in self composition, assuming 2 copies for now
     Vec_Int_t*  vReg2PI;   // maps register to its corresponding PI id representing its abstracted value. Only imem registers have this for now.
     Vec_Int_t*  vReg2Inst; // maps register to the imem instruction id/PC.
+    Vec_Int_t*  vPIs2Imem; // Pis to its corresponding imemory bits, -1 means it does not correspond to any imem bit.
     int         nInsts;    // number of imem instructions
     int         instLen;   // length of each imem instruction in bits  
+    int         nBlockedP; // number of blocked programs
+
+    FILE    *   pBlockedProgramFile; // file to write blocked program   
 };
 
 ////////////////////////////////////////////////////////////////////////
@@ -272,6 +276,15 @@ extern void            Pdr_QueueClean( Pdr_Man_t * p );
 extern void            Pdr_QueuePush( Pdr_Man_t * p, Pdr_Obl_t * pObl );
 extern void            Pdr_QueuePrint( Pdr_Man_t * p );
 extern void            Pdr_QueueStop( Pdr_Man_t * p );
+
+/*=== pdrContract.c ==========================================================*/
+extern int             Pdr_ManLogUnsafeProgram( Pdr_Man_t * p, FILE * pFile);  
+extern int             Pdr_ManRegInstId(Pdr_Man_t* p, int regId);
+extern int             Pdr_ManRegInstBit(Pdr_Man_t* p, int regId);
+extern int             Pdr_ManPiInstId(Pdr_Man_t* p, int piId);
+extern int             Pdr_ManPiInstBit(Pdr_Man_t* p, int piId);
+extern int             Pdr_ManIsRegInst(Pdr_Man_t* p, int regId);
+extern int             Pdr_ManRegCopy(Pdr_Man_t* p, int regId);
 
 ABC_NAMESPACE_HEADER_END
 

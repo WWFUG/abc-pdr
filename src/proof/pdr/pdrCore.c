@@ -84,6 +84,7 @@ void Pdr_ManSetDefaultParams( Pdr_Par_t * pPars )
     pPars->pInvFileName   =    NULL;  // invariant file name
     pPars->fBlocking      =       0;  // clause pushing with blocking
     pPars->pISAInfoFileName =  NULL;  // ISA information file name
+    pPars->pBlockedProgramFileName = NULL; // blocked program file name
 }
 
 /**Function*************************************************************
@@ -1620,25 +1621,47 @@ int Pdr_ManSolveInt( Pdr_Man_t * p )
                         if ( !p->pPars->fSolveAll )
                         {
                             // Handle fRefineInit flags here
-                            // 1. extract the cube state at timeframe 1, which corresponds to the generalized unsafe program
-                            // 2. transform the cube C into C_I in terms of its corresdponding PIs
-                            // 3. store the C_I in Pdr_Man_t
-                            // 4. block the C_I on PIs of the traisition system by adding clauses
-                            // 5. This ensure that the cube at timeframe 1 is blocked and we need to backtrack to the proof obligation 
-                            // at timeframe 2 to see if there is any frame 1 predicessors (generalized unsafe program)
-                            abctime clk = Abc_Clock();
-                            Abc_Cex_t * pCex = Pdr_ManDeriveCexAbs(p);
-                            p->tAbs += Abc_Clock() - clk;
-                            if ( pCex == NULL )
-                            {
-                                assert( p->pPars->fUseAbs );
-                                Pdr_QueueClean( p );
-                                pCube = NULL;
-                                fRefined = 1;
-                                break; // keep solving
+                            // 1. extract the generalized input C_I at frame 0 as a generzlied unsafe program
+                            // 2. block the C_I on PIs of the traisition system in frame 0 by adding clauses
+                            // 3. we need to backtrack to the proof oblicgation at frame 1 to check if there is any unsafe program that 
+                            // can reach it. 
+                            
+                            if (p->pPars->fRefineInit){
+                                if(p->pBlockedProgramFile){
+                                    // log both the concrete unsafe program and the generalized unsafe program to the file
+                                    Pdr_ManLogUnsafeProgram(p, p->pBlockedProgramFile);
+                                }    
+                                // actuall refinement of the unsafe program here.
+                                // FIXME: Fix the following placeholder code to refine PI
+                                abctime clk = Abc_Clock();
+                                Abc_Cex_t * pCex = Pdr_ManDeriveCexAbs(p);
+                                p->tAbs += Abc_Clock() - clk;
+                                if ( pCex == NULL )
+                                {
+                                    assert( p->pPars->fUseAbs );
+                                    Pdr_QueueClean( p );
+                                    pCube = NULL;
+                                    fRefined = 1;
+                                    break; // keep solving
+                                }
+                                p->pAig->pSeqModel = pCex;
+                                return 0; // SAT
                             }
-                            p->pAig->pSeqModel = pCex;
-                            return 0; // SAT
+                            else{
+                                abctime clk = Abc_Clock();
+                                Abc_Cex_t * pCex = Pdr_ManDeriveCexAbs(p);
+                                p->tAbs += Abc_Clock() - clk;
+                                if ( pCex == NULL )
+                                {
+                                    assert( p->pPars->fUseAbs );
+                                    Pdr_QueueClean( p );
+                                    pCube = NULL;
+                                    fRefined = 1;
+                                    break; // keep solving
+                                }
+                                p->pAig->pSeqModel = pCex;
+                                return 0; // SAT
+                            }
                         }
                         p->pPars->nFailOuts++;
                         pCexNew = (p->pPars->fUseBridge || p->pPars->fStoreCex) ? Pdr_ManDeriveCex(p) : (Abc_Cex_t *)(ABC_PTRINT_T)1;

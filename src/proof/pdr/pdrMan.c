@@ -255,10 +255,12 @@ int Pdr_ManReadISAInfo(Pdr_Man_t* p, char* pFileName){
     char buffer[1000];
     int latch, copy, pi, inst;
     int maxInst = -1;
-    int maxBitInInst = -1;
+    int imemb = 0;
     p->vReg2Copy = Vec_IntStart( Aig_ManRegNum(p->pAig) );
     p->vReg2PI = Vec_IntStart( Aig_ManRegNum(p->pAig) );
     p->vReg2Inst = Vec_IntStart( Aig_ManRegNum(p->pAig) );
+    p->vPIs2Imem = Vec_IntStart( Saig_ManPiNum(p->pAig) );
+    Vec_IntFill( p->vPIs2Imem, Saig_ManPiNum(p->pAig), -1 );
 
     if (fgets(buffer, sizeof(buffer), pFile) == NULL) {
         Abc_Print(-1, "ISA info file \"%s\" is empty.\n", pFileName);
@@ -274,18 +276,24 @@ int Pdr_ManReadISAInfo(Pdr_Man_t* p, char* pFileName){
 
         if (inst >= 0 && inst > maxInst)
             maxInst = inst;
-        if (inst >= 0 && pi >= 0 && pi > maxBitInInst)
-            maxBitInInst = pi;
+        if (inst == 0 && copy == 1)
+            p->instLen += 1;
 
         Vec_IntWriteEntry(p->vReg2Copy, latch, copy);
         Vec_IntWriteEntry(p->vReg2PI, latch, pi);
         Vec_IntWriteEntry(p->vReg2Inst, latch, inst);
+        if (pi >= 0 && copy == 1){
+            Vec_IntWriteEntry(p->vPIs2Imem, pi, imemb);
+            imemb++;
+        }
     }
 
     fclose(pFile);
 
     p->nInsts = maxInst + 1;
-    p->instLen = maxBitInInst + 1;
+
+    printf("nInsts = %d, instLen = %d\n", p->nInsts, p->instLen);
+    
 
     return 0;
 }
@@ -362,6 +370,15 @@ Pdr_Man_t * Pdr_ManStart( Aig_Man_t * pAig, Pdr_Par_t * pPars, Vec_Int_t * vPrio
     if ( pPars->pISAInfoFileName) {
         if ( Pdr_ManReadISAInfo(p, pPars->pISAInfoFileName)==-1 )
         {
+            Pdr_ManStop( p );
+            return NULL;
+        }
+    }
+
+    if ( pPars->pBlockedProgramFileName ){
+        p->pBlockedProgramFile = fopen(pPars->pBlockedProgramFileName, "w");
+        if ( p->pBlockedProgramFile == NULL ) {
+            Abc_Print(-1, "Cannot open the blocked program file \"%s\".\n", pPars->pBlockedProgramFileName);
             Pdr_ManStop( p );
             return NULL;
         }
@@ -452,6 +469,7 @@ void Pdr_ManStop( Pdr_Man_t * p )
     Vec_IntFree( p->vReg2Copy );
     Vec_IntFree( p->vReg2PI   );
     Vec_IntFree( p->vReg2Inst );
+    Vec_IntFree( p->vPIs2Imem );
     ABC_FREE( p->pTime4Outs );
     if ( p->vCexes )
         Vec_PtrFreeFree( p->vCexes );
@@ -460,6 +478,11 @@ void Pdr_ManStop( Pdr_Man_t * p )
         Aig_ManFanoutStop( p->pAig );
     if ( p->pAig->pTerSimData != NULL )
         ABC_FREE( p->pAig->pTerSimData );
+    
+    if (p->pBlockedProgramFile) {
+        fclose(p->pBlockedProgramFile);
+        p->pBlockedProgramFile = NULL;
+    }
     ABC_FREE( p );
 }
 

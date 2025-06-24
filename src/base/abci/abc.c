@@ -31765,7 +31765,7 @@ int Abc_CommandPdr( Abc_Frame_t * pAbc, int argc, char ** argv )
     int c;
     Pdr_ManSetDefaultParams( pPars );
     Extra_UtilGetoptReset();
-    while ( ( c = Extra_UtilGetopt( argc, argv, "MFCDQTHGSLIKaxrmuyfqipdegjonctkvwzhbsl" ) ) != EOF )
+    while ( ( c = Extra_UtilGetopt( argc, argv, "MFCDQTHGSLIKPaxrmuyfqipdegjonctkvwzhbsl" ) ) != EOF )
     {
         switch ( c )
         {
@@ -31893,6 +31893,15 @@ int Abc_CommandPdr( Abc_Frame_t * pAbc, int argc, char ** argv )
                 goto usage;
             }
             pPars->pISAInfoFileName = argv[globalUtilOptind];
+            globalUtilOptind++;
+            break;
+        case 'P':
+            if ( globalUtilOptind >= argc )
+            {
+                Abc_Print( -1, "Command line switch \"-P\" should be followed by a file name.\n" );
+                goto usage;
+            }
+            pPars->pBlockedProgramFileName = argv[globalUtilOptind];
             globalUtilOptind++;
             break;
         case 'a':
@@ -32039,6 +32048,7 @@ usage:
     Abc_Print( -2, "\t-L file: the log file name [default = %s]\n",                                          pLogFileName ? pLogFileName : "no logging" );
     Abc_Print( -2, "\t-I file: the invariant file name [default = %s]\n",                                    pPars->pInvFileName ? pPars->pInvFileName : "default name" );
     Abc_Print( -2, "\t-K file: the ISA information file name [default = %s]\n",                              pPars->pISAInfoFileName ? pPars->pISAInfoFileName : "default name" );
+    Abc_Print( -2, "\t-P file: the Blocked Program file name [default = %s]\n",                              pPars->pBlockedProgramFileName ? pPars->pBlockedProgramFileName : "default name" );
     Abc_Print( -2, "\t-a     : toggle solving all outputs even if one of them is SAT [default = %s]\n",      pPars->fSolveAll? "yes": "no" );
     Abc_Print( -2, "\t-x     : toggle storing CEXes when solving all outputs [default = %s]\n",              pPars->fStoreCex? "yes": "no" );
     Abc_Print( -2, "\t-r     : toggle using more effort in generalization [default = %s]\n",                 pPars->fTwoRounds? "yes": "no" );

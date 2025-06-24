@@ -89,6 +89,7 @@ struct Pdr_Par_t_
     int fBlocking;        // clause pushing with blocking
 
     char * pISAInfoFileName; // file name for ISA information
+    char * pBlockedProgramFileName; // file name for blocked program logging
 };
 
 ////////////////////////////////////////////////////////////////////////
