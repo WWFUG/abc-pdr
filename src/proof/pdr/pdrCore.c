@@ -1318,7 +1318,21 @@ int Pdr_ManBlockCube( Pdr_Man_t * p, Pdr_Set_t * pCube )
             Pdr_OblDeref( pThis );
             return -1; // resource limit is reached
         }
-        if ( pThis->iFrame == 0 || (p->pPars->fUseAbs && RetValue) )
+        if ( pThis->iFrame == 0){
+            // printf("Found unsafe program here!!\n");
+            if (p->pPars->fRefineInit){
+                if(p->pBlockedProgramFile){
+                    Pdr_ManLogUnsafeProgram(p, p->pBlockedProgramFile);
+                }
+                Pdr_ManBlockProgram(p, pThis);
+                Pdr_OblDeref( pThis );
+                Pdr_QueuePop( p );
+                continue;
+            }
+            else
+                return 0;
+        }
+        if (p->pPars->fUseAbs && RetValue) // abstraction
             return 0; // SAT
         if ( pThis->iFrame > kMax ) // finished this level
             return 1;
@@ -1364,6 +1378,7 @@ int Pdr_ManBlockCube( Pdr_Man_t * p, Pdr_Set_t * pCube )
         }
         if ( RetValue ) // cube is blocked inductively in this frame
         {
+            // printf("%p is blocked at frame %d\n", pThis->pState, pThis->iFrame);
             assert( pCubeMin != NULL );
             // k is the last frame where pCubeMin holds
             k = pThis->iFrame;
@@ -1415,6 +1430,7 @@ int Pdr_ManBlockCube( Pdr_Man_t * p, Pdr_Set_t * pCube )
         }
         else
         {
+            // printf("%p is not blocked at frame %d\n", pThis->pState, pThis->iFrame);
             assert( pCubeMin == NULL );
             assert( pPred != NULL );
             pThis->prio = Prio--;
@@ -1620,48 +1636,19 @@ int Pdr_ManSolveInt( Pdr_Man_t * p )
                         p->pPars->iFrame = iFrame;
                         if ( !p->pPars->fSolveAll )
                         {
-                            // Handle fRefineInit flags here
-                            // 1. extract the generalized input C_I at frame 0 as a generzlied unsafe program
-                            // 2. block the C_I on PIs of the traisition system in frame 0 by adding clauses
-                            // 3. we need to backtrack to the proof oblicgation at frame 1 to check if there is any unsafe program that 
-                            // can reach it. 
-                            
-                            if (p->pPars->fRefineInit){
-                                if(p->pBlockedProgramFile){
-                                    // log both the concrete unsafe program and the generalized unsafe program to the file
-                                    Pdr_ManLogUnsafeProgram(p, p->pBlockedProgramFile);
-                                }    
-                                // actuall refinement of the unsafe program here.
-                                // FIXME: Fix the following placeholder code to refine PI
-                                abctime clk = Abc_Clock();
-                                Abc_Cex_t * pCex = Pdr_ManDeriveCexAbs(p);
-                                p->tAbs += Abc_Clock() - clk;
-                                if ( pCex == NULL )
-                                {
-                                    assert( p->pPars->fUseAbs );
-                                    Pdr_QueueClean( p );
-                                    pCube = NULL;
-                                    fRefined = 1;
-                                    break; // keep solving
-                                }
-                                p->pAig->pSeqModel = pCex;
-                                return 0; // SAT
+                            abctime clk = Abc_Clock();
+                            Abc_Cex_t * pCex = Pdr_ManDeriveCexAbs(p);
+                            p->tAbs += Abc_Clock() - clk;
+                            if ( pCex == NULL )
+                            {
+                                assert( p->pPars->fUseAbs );
+                                Pdr_QueueClean( p );
+                                pCube = NULL;
+                                fRefined = 1;
+                                break; // keep solving
                             }
-                            else{
-                                abctime clk = Abc_Clock();
-                                Abc_Cex_t * pCex = Pdr_ManDeriveCexAbs(p);
-                                p->tAbs += Abc_Clock() - clk;
-                                if ( pCex == NULL )
-                                {
-                                    assert( p->pPars->fUseAbs );
-                                    Pdr_QueueClean( p );
-                                    pCube = NULL;
-                                    fRefined = 1;
-                                    break; // keep solving
-                                }
-                                p->pAig->pSeqModel = pCex;
-                                return 0; // SAT
-                            }
+                            p->pAig->pSeqModel = pCex;
+                            return 0; // SAT
                         }
                         p->pPars->nFailOuts++;
                         pCexNew = (p->pPars->fUseBridge || p->pPars->fStoreCex) ? Pdr_ManDeriveCex(p) : (Abc_Cex_t *)(ABC_PTRINT_T)1;

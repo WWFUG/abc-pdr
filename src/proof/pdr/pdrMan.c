@@ -382,6 +382,7 @@ Pdr_Man_t * Pdr_ManStart( Aig_Man_t * pAig, Pdr_Par_t * pPars, Vec_Int_t * vPrio
             Pdr_ManStop( p );
             return NULL;
         }
+        p->vBlockedPrograms = Vec_PtrAlloc( 0 );
     }
 
     return p;
@@ -483,6 +484,13 @@ void Pdr_ManStop( Pdr_Man_t * p )
         fclose(p->pBlockedProgramFile);
         p->pBlockedProgramFile = NULL;
     }
+
+    // free blocked programs
+    Vec_PtrForEachEntry(Pdr_Set_t *, p->vBlockedPrograms, pCla, i )
+        Pdr_SetDeref( pCla );
+    Vec_PtrFree( p->vBlockedPrograms );
+
+    // free the manager
     ABC_FREE( p );
 }
 

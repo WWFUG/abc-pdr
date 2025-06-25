@@ -107,8 +107,16 @@ sat_solver * Pdr_ManFetchSolver( Pdr_Man_t * p, int k )
     // set the property output
     Pdr_ManSetPropertyOutput( p, k );
     // set the reset input
-    if (p->pPars->fSymInit)
+    if (p->pPars->fRefineInit)
         Pdr_ManSetUnsetRstInput( p, k );
+
+    if (p->pPars->fRefineInit)
+    {
+        assert(p->vBlockedPrograms);
+        // add the clauses for blocked programs
+        Vec_PtrForEachEntry(Pdr_Set_t*, p->vBlockedPrograms, pCube, i)
+            Pdr_ManSolverAddProgramClause(p, pCube);
+    }
     // add the clauses
     Vec_VecForEachLevelStart( p->vClauses, vArrayK, i, k )
         Vec_PtrForEachEntry( Pdr_Set_t *, vArrayK, pCube, j )
@@ -178,6 +186,44 @@ Vec_Int_t * Pdr_ManCubeToLits( Pdr_Man_t * p, int k, Pdr_Set_t * pCube, int fCom
     return p->vLits;
 }
 
+
+/**Function*************************************************************
+
+  Synopsis    [Converts the cube representing program in terms of PIs into array of CNF literals.]
+
+  Description []
+               
+  SideEffects []
+
+  SeeAlso     []
+
+***********************************************************************/
+Vec_Int_t * Pdr_ManProgramCubeToLits( Pdr_Man_t * p, Pdr_Set_t * pCube )
+{
+    Aig_Obj_t * pObj;
+    int i, iVar, Lit;
+    abctime clk = Abc_Clock();
+    Vec_IntClear( p->vLits );
+    int nPis = Saig_ManPiNum(p->pAig);
+    for ( i = pCube->nLits; i < pCube->nTotal; i++ )
+    {
+        Lit = pCube->Lits[i];
+        // printf("Adding PI literal %d\n", Lit);
+        int piId = Abc_Lit2Var(Lit);
+        int imemIdx = Vec_IntEntry(p->vPIs2Imem, piId);
+        if (imemIdx < 0) // skip if not mapped to imem
+            continue;
+        if (piId >= nPis)
+            continue;   
+        pObj = Aig_ManCi( p->pAig, piId );
+        iVar = Pdr_ObjSatVar( p, 0, 1, pObj ); assert( iVar >= 0 );
+        Vec_IntPush( p->vLits, Abc_Var2Lit( iVar, !Abc_LitIsCompl(Lit) ) );
+    }
+//    sat_solver_setnvars( Pdr_ManSolver(p, k), iVarMax + 1 );
+    p->tCnf += Abc_Clock() - clk;
+    return p->vLits;
+}
+
 /**Function*************************************************************
 
   Synopsis    [Sets the property output to 0 (sat) forever.]
@@ -234,8 +280,9 @@ void Pdr_ManSetUnsetRstInput( Pdr_Man_t * p, int k )
     if ( !p->pPars->fRefineInit )
         return;
     pSat = Pdr_ManSolver(p, k);
-    pObj = Aig_ManCi( p->pAig, 0 ); // assuming the first PI is the reset signal
-    Lit = Abc_Var2Lit( Pdr_ObjSatVar(p, k, 1, pObj), (k == 0) ); // pos literal if k=0, neg otherwise
+    pObj = Aig_ManCi( p->pAig, 1 ); // assuming the second is the reset signal
+    assert(Saig_ObjIsPi(p->pAig, pObj));
+    Lit = Abc_Var2Lit( Pdr_ObjSatVar(p, k, 1, pObj), (k != 0) ); // pos literal if k=0, neg otherwise
     RetValue = sat_solver_addclause( pSat, &Lit, &Lit + 1 );
     assert(RetValue == 1);
     sat_solver_compress( pSat );
@@ -259,6 +306,29 @@ void Pdr_ManSolverAddClause( Pdr_Man_t * p, int k, Pdr_Set_t * pCube )
     int RetValue;
     pSat  = Pdr_ManSolver(p, k);
     vLits = Pdr_ManCubeToLits( p, k, pCube, 1, 0 );
+    RetValue = sat_solver_addclause( pSat, Vec_IntArray(vLits), Vec_IntArray(vLits) + Vec_IntSize(vLits) );
+    assert( RetValue == 1 );
+    sat_solver_compress( pSat );
+}
+
+/**Function*************************************************************
+
+  Synopsis    [Adds one clause in terms of PIs to the frame 0 SAT solver.]
+
+  Description []
+               
+  SideEffects []
+
+  SeeAlso     []
+
+***********************************************************************/
+void Pdr_ManSolverAddProgramClause( Pdr_Man_t * p, Pdr_Set_t * pCube )
+{
+    sat_solver * pSat;
+    Vec_Int_t * vLits;
+    int RetValue;
+    pSat  = Pdr_ManSolver(p, 0);
+    vLits = Pdr_ManProgramCubeToLits( p, pCube );
     RetValue = sat_solver_addclause( pSat, Vec_IntArray(vLits), Vec_IntArray(vLits) + Vec_IntSize(vLits) );
     assert( RetValue == 1 );
     sat_solver_compress( pSat );
@@ -414,16 +484,16 @@ int Pdr_ManCheckCube( Pdr_Man_t * p, int k, Pdr_Set_t * pCube, Pdr_Set_t ** ppPr
         RetValue = 0;
     }
 
-/* // for some reason, it does not work...
-    if ( fLitUsed )
-    {
-        int RetValue;
-        Lit = Abc_LitNot(Lit);
-        RetValue = sat_solver_addclause( pSat, &Lit, &Lit + 1 );
-        assert( RetValue == 1 );
-        sat_solver_compress( pSat );
-    }
-*/
+    // for some reason, it does not work...
+    // if ( fLitUsed )
+    // {
+    //     int RetValue;
+    //     Lit = Abc_LitNot(Lit);
+    //     RetValue = sat_solver_addclause( pSat, &Lit, &Lit + 1 );
+    //     assert( RetValue == 1 );
+    //     sat_solver_compress( pSat );
+    // }
+
     return RetValue;
 }
 

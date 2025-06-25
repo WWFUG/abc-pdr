@@ -102,6 +102,50 @@ int Pdr_ManLogUnsafeProgram(Pdr_Man_t* p, FILE * pFile){
     return 1;
 }
 
+
+/**Function*************************************************************
+
+  Synopsis    []
+
+  Description [Block the unsafe program stored in the PI assignment of this proof obligation.]
+               
+  SideEffects []
+
+  SeeAlso     []
+
+***********************************************************************/
+
+int Pdr_ManBlockProgram(Pdr_Man_t* p, Pdr_Obl_t * pObl){
+    int i, Lit;
+    int nPis = Saig_ManPiNum(p->pAig);
+    Vec_Int_t* vPis = Vec_IntAlloc(10);
+    Vec_Int_t* vDummy = Vec_IntAlloc(0);
+    Pdr_Set_t * pProgram;
+
+    // 1. create the new pProgram that consists of only the PIs for Imem, no registers involved
+    for ( i = pObl->pState->nLits; i < pObl->pState->nTotal; i++ )
+    {
+        Lit = pObl->pState->Lits[i];
+        int piId = Abc_Lit2Var(Lit);
+        int imemIdx = Vec_IntEntry(p->vPIs2Imem, piId);
+        // printf("imemIdx = %d, piId = %d, Val = %d\n", imemIdx, piId, 1 - Abc_LitIsCompl(Lit));
+        if (imemIdx < 0) // skip if not mapped to imem
+            continue;
+        if (piId >= nPis)
+            continue;
+        Vec_IntPush(vPis, Lit);
+    }
+    pProgram = Pdr_SetCreate(vDummy, vPis);
+
+    // 2. push the pProgram to the blocked programs
+    Vec_PtrPush( p->vBlockedPrograms, pProgram );
+
+    // 3. create the corresponding clause and add it to the solver at frame zero
+    Pdr_ManSolverAddProgramClause(p, pProgram);
+    p->nBlockedP++;
+    return 1;
+}
+
 /**Function*************************************************************
 
   Synopsis    []
