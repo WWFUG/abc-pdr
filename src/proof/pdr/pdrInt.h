@@ -183,9 +183,14 @@ struct Pdr_Man_t_
     int         instLen;   // length of each imem instruction in bits  
     int         nBlockedP; // number of blocked programs
 
+    int         nStartFrame; // frame number where the last reset was set in the cex
+
     Vec_Ptr_t*  vBlockedPrograms; // blocked programs stored as a vector of Pdr_Set_t* in frame 0
 
-    FILE    *   pBlockedProgramFile; // file to write blocked program   
+    FILE    *   pBlockedProgramFile; // file to write blocked program 
+    
+    Vec_Int_t* vPis;
+    Vec_Int_t* vDummy;
 };
 
 ////////////////////////////////////////////////////////////////////////
@@ -236,10 +241,10 @@ extern sat_solver *    Pdr_ManFetchSolver( Pdr_Man_t * p, int k );
 extern void            Pdr_ManSetPropertyOutput( Pdr_Man_t * p, int k );
 extern void            Pdr_ManSetUnsetRstInput( Pdr_Man_t * p, int k );
 extern Vec_Int_t *     Pdr_ManCubeToLits( Pdr_Man_t * p, int k, Pdr_Set_t * pCube, int fCompl, int fNext );
-extern Vec_Int_t *     Pdr_ManProgramCubeToLits( Pdr_Man_t * p, Pdr_Set_t * pCube);
+extern Vec_Int_t *     Pdr_ManProgramCubeToLits( Pdr_Man_t * p, Pdr_Set_t * pCube, int k);
 extern Vec_Int_t *     Pdr_ManLitsToCube( Pdr_Man_t * p, int k, int * pArray, int nArray );
 extern void            Pdr_ManSolverAddClause( Pdr_Man_t * p, int k, Pdr_Set_t * pCube );
-extern void            Pdr_ManSolverAddProgramClause( Pdr_Man_t * p, Pdr_Set_t * pCube );
+extern void            Pdr_ManSolverAddProgramClause( Pdr_Man_t * p, Pdr_Set_t * pCube, int k);
 extern void            Pdr_ManCollectValues( Pdr_Man_t * p, int k, Vec_Int_t * vObjIds, Vec_Int_t * vValues );
 extern int             Pdr_ManCheckCubeCs( Pdr_Man_t * p, int k, Pdr_Set_t * pCube );
 extern int             Pdr_ManCheckCube( Pdr_Man_t * p, int k, Pdr_Set_t * pCube, Pdr_Set_t ** ppPred, int nConfLimit, int fTryConf, int fUseLit );
@@ -282,14 +287,14 @@ extern void            Pdr_QueuePrint( Pdr_Man_t * p );
 extern void            Pdr_QueueStop( Pdr_Man_t * p );
 
 /*=== pdrContract.c ==========================================================*/
-extern int             Pdr_ManLogUnsafeProgram( Pdr_Man_t * p, FILE * pFile);  
+extern int             Pdr_ManLogUnsafeProgram( Pdr_Man_t * p, Pdr_Set_t* pProgram, FILE * pFile);  
 extern int             Pdr_ManRegInstId(Pdr_Man_t* p, int regId);
 extern int             Pdr_ManRegInstBit(Pdr_Man_t* p, int regId);
 extern int             Pdr_ManPiInstId(Pdr_Man_t* p, int piId);
 extern int             Pdr_ManPiInstBit(Pdr_Man_t* p, int piId);
 extern int             Pdr_ManIsRegInst(Pdr_Man_t* p, int regId);
 extern int             Pdr_ManRegCopy(Pdr_Man_t* p, int regId);
-extern int             Pdr_ManBlockProgram(Pdr_Man_t* p, Pdr_Obl_t * pObl);
+extern Pdr_Set_t*      Pdr_ManOblToProgram(Pdr_Man_t* p, Pdr_Obl_t* pObl);
 
 ABC_NAMESPACE_HEADER_END
 

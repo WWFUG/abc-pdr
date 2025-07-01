@@ -60,8 +60,8 @@ sat_solver * Pdr_ManCreateSolver( Pdr_Man_t * p, int k )
     // add property cone
     Saig_ManForEachPo( p->pAig, pObj, i )
     {
-        if(p->pPars->fSymInit && i==0) // skip the first PO in symbolic initial state mode
-            continue;
+        // if(p->pPars->fSymInit && i==0) // skip the first PO in symbolic initial state mode
+        //     continue;
         Pdr_ObjSatVar( p, k, 1, pObj );
     }
 
@@ -115,7 +115,9 @@ sat_solver * Pdr_ManFetchSolver( Pdr_Man_t * p, int k )
         assert(p->vBlockedPrograms);
         // add the clauses for blocked programs
         Vec_PtrForEachEntry(Pdr_Set_t*, p->vBlockedPrograms, pCube, i)
-            Pdr_ManSolverAddProgramClause(p, pCube);
+        {
+            Pdr_ManSolverAddProgramClause(p, pCube, k);
+        }
     }
     // add the clauses
     Vec_VecForEachLevelStart( p->vClauses, vArrayK, i, k )
@@ -198,7 +200,7 @@ Vec_Int_t * Pdr_ManCubeToLits( Pdr_Man_t * p, int k, Pdr_Set_t * pCube, int fCom
   SeeAlso     []
 
 ***********************************************************************/
-Vec_Int_t * Pdr_ManProgramCubeToLits( Pdr_Man_t * p, Pdr_Set_t * pCube )
+Vec_Int_t * Pdr_ManProgramCubeToLits( Pdr_Man_t * p, Pdr_Set_t * pCube, int k)
 {
     Aig_Obj_t * pObj;
     int i, iVar, Lit;
@@ -216,7 +218,7 @@ Vec_Int_t * Pdr_ManProgramCubeToLits( Pdr_Man_t * p, Pdr_Set_t * pCube )
         if (piId >= nPis)
             continue;   
         pObj = Aig_ManCi( p->pAig, piId );
-        iVar = Pdr_ObjSatVar( p, 0, 1, pObj ); assert( iVar >= 0 );
+        iVar = Pdr_ObjSatVar( p, k, 1, pObj ); assert( iVar >= 0 );
         Vec_IntPush( p->vLits, Abc_Var2Lit( iVar, !Abc_LitIsCompl(Lit) ) );
     }
 //    sat_solver_setnvars( Pdr_ManSolver(p, k), iVarMax + 1 );
@@ -274,13 +276,14 @@ void Pdr_ManSetPropertyOutput( Pdr_Man_t * p, int k )
 ***********************************************************************/
 void Pdr_ManSetUnsetRstInput( Pdr_Man_t * p, int k )
 {
+    return;
     sat_solver * pSat;
     Aig_Obj_t * pObj;
     int Lit, RetValue;
     if ( !p->pPars->fRefineInit )
         return;
     pSat = Pdr_ManSolver(p, k);
-    pObj = Aig_ManCi( p->pAig, 1 ); // assuming the second is the reset signal
+    pObj = Aig_ManCi( p->pAig, 1 ); // assuming the second one is the reset signal
     assert(Saig_ObjIsPi(p->pAig, pObj));
     Lit = Abc_Var2Lit( Pdr_ObjSatVar(p, k, 1, pObj), (k != 0) ); // pos literal if k=0, neg otherwise
     RetValue = sat_solver_addclause( pSat, &Lit, &Lit + 1 );
@@ -299,7 +302,7 @@ void Pdr_ManSetUnsetRstInput( Pdr_Man_t * p, int k )
   SeeAlso     []
 
 ***********************************************************************/
-void Pdr_ManSolverAddClause( Pdr_Man_t * p, int k, Pdr_Set_t * pCube )
+void Pdr_ManSolverAddClause( Pdr_Man_t * p, int k, Pdr_Set_t * pCube)
 {
     sat_solver * pSat;
     Vec_Int_t * vLits;
@@ -322,13 +325,13 @@ void Pdr_ManSolverAddClause( Pdr_Man_t * p, int k, Pdr_Set_t * pCube )
   SeeAlso     []
 
 ***********************************************************************/
-void Pdr_ManSolverAddProgramClause( Pdr_Man_t * p, Pdr_Set_t * pCube )
+void Pdr_ManSolverAddProgramClause( Pdr_Man_t * p, Pdr_Set_t * pCube, int k)
 {
     sat_solver * pSat;
     Vec_Int_t * vLits;
     int RetValue;
-    pSat  = Pdr_ManSolver(p, 0);
-    vLits = Pdr_ManProgramCubeToLits( p, pCube );
+    pSat  = Pdr_ManSolver(p, k);
+    vLits = Pdr_ManProgramCubeToLits( p, pCube, k);
     RetValue = sat_solver_addclause( pSat, Vec_IntArray(vLits), Vec_IntArray(vLits) + Vec_IntSize(vLits) );
     assert( RetValue == 1 );
     sat_solver_compress( pSat );

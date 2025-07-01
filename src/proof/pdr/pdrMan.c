@@ -345,6 +345,8 @@ Pdr_Man_t * Pdr_ManStart( Aig_Man_t * pAig, Pdr_Par_t * pPars, Vec_Int_t * vPrio
     p->vCi2Rem  = Vec_IntAlloc( 100 );  // CIs to be removed
     p->vRes     = Vec_IntAlloc( 100 );  // final result
     p->pCnfMan  = Cnf_ManStart();
+    p->vPis     = Vec_IntAlloc( 10 );  // PIs
+    p->vDummy   = Vec_IntAlloc( 0 );   // dummy vector
     // ternary simulation
     p->pTxs3    = pPars->fNewXSim ? Txs3_ManStart( p, pAig, p->vPrio ) : NULL;
     // additional AIG data-members
@@ -471,6 +473,8 @@ void Pdr_ManStop( Pdr_Man_t * p )
     Vec_IntFree( p->vReg2PI   );
     Vec_IntFree( p->vReg2Inst );
     Vec_IntFree( p->vPIs2Imem );
+    Vec_IntFree( p->vPis);
+    Vec_IntFree( p->vDummy);
     ABC_FREE( p->pTime4Outs );
     if ( p->vCexes )
         Vec_PtrFreeFree( p->vCexes );

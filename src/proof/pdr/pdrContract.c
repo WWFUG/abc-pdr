@@ -38,16 +38,10 @@ ABC_NAMESPACE_IMPL_START
 
 ***********************************************************************/
 
-int Pdr_ManLogUnsafeProgram(Pdr_Man_t* p, FILE * pFile){
-    Pdr_Obl_t * pObl0, * pObl1;
+int Pdr_ManLogUnsafeProgram(Pdr_Man_t* p, Pdr_Set_t* pProgram, FILE * pFile){
     int i = 0, j=0, Lit;
-    int nPis = Saig_ManPiNum(p->pAig);
 
     assert(pFile);
-
-    pObl0 = p->pQueue; // the first proof obligation, PI assignments -> concrete unsafe program 
-    pObl1 = pObl0->pNext; // the second proof obligation, state assignments -> generalized unsafe program
-
     fprintf(pFile, "%d-th Unsafe Program\n", p->nBlockedP);
 
     // derive concrete unsafe program
@@ -61,17 +55,12 @@ int Pdr_ManLogUnsafeProgram(Pdr_Man_t* p, FILE * pFile){
     memset(pGenBits, 'x', totalBits);
     pGenBits[totalBits] = '\0';
 
-    for ( i = pObl0->pState->nLits; i < pObl0->pState->nTotal; i++ )
+    for ( i = pProgram->nLits; i < pProgram->nTotal; i++ )
     {
-        Lit = pObl0->pState->Lits[i];
+        Lit = pProgram->Lits[i];
         int piId = Abc_Lit2Var(Lit);
 
         int imemIdx = Vec_IntEntry(p->vPIs2Imem, piId);
-        // printf("imemIdx = %d, piId = %d, Val = %d\n", imemIdx, piId, 1 - Abc_LitIsCompl(Lit));
-        if (imemIdx < 0) // skip if not mapped to imem
-            continue;
-        if (piId >= nPis)
-            continue;
 
         pConcreteBits[imemIdx] = Abc_LitIsCompl(Lit) ? '0' : '1';
         pGenBits[imemIdx] = Abc_LitIsCompl(Lit) ? '0' : '1';
@@ -102,48 +91,59 @@ int Pdr_ManLogUnsafeProgram(Pdr_Man_t* p, FILE * pFile){
     return 1;
 }
 
-
-/**Function*************************************************************
-
-  Synopsis    []
-
-  Description [Block the unsafe program stored in the PI assignment of this proof obligation.]
-               
-  SideEffects []
-
-  SeeAlso     []
-
-***********************************************************************/
-
-int Pdr_ManBlockProgram(Pdr_Man_t* p, Pdr_Obl_t * pObl){
+Pdr_Set_t* Pdr_ManOblToProgram(Pdr_Man_t* p, Pdr_Obl_t* pObl){
     int i, Lit;
+    int fLatestRst = 0; // when the latest reset input is used
+    int nFrame = 0;
     int nPis = Saig_ManPiNum(p->pAig);
-    Vec_Int_t* vPis = Vec_IntAlloc(10);
-    Vec_Int_t* vDummy = Vec_IntAlloc(0);
     Pdr_Set_t * pProgram;
+    Pdr_Obl_t* pOblProgram = pObl;
+    p->nStartFrame = 0;
+
+    Vec_IntClear( p->vPis );
+
+    // count the number of frames
+    for ( ; pObl; pObl = pObl->pNext )
+    {
+        // printf("%d-th Obl %p\n", nFrame, pObl);
+        for ( i = pObl->pState->nLits; i < pObl->pState->nTotal; i++ )
+        {
+            Lit = pObl->pState->Lits[i]; 
+            int piId = Abc_Lit2Var(Lit);
+            if (piId == 1 && !Abc_LitIsCompl(Lit)) 
+            {
+                // record latest proof obligation where the reset is set
+                fLatestRst = nFrame;
+                pOblProgram = pObl;
+                break; // skip reset input
+            }
+        }
+        nFrame ++;
+    }
+    // printf("Unsafe %d-th Program was set at frame %d with total cex len %d\n", p->nBlockedP, fLatestRst, nFrame);
+    // printf("%p %p %p\n", pObl, pOblProgram, p->pQueue);
+    p->nStartFrame = fLatestRst;
 
     // 1. create the new pProgram that consists of only the PIs for Imem, no registers involved
-    for ( i = pObl->pState->nLits; i < pObl->pState->nTotal; i++ )
+    for ( i = pOblProgram->pState->nLits; i < pOblProgram->pState->nTotal; i++ )
     {
-        Lit = pObl->pState->Lits[i];
+        Lit = pOblProgram->pState->Lits[i];
         int piId = Abc_Lit2Var(Lit);
         int imemIdx = Vec_IntEntry(p->vPIs2Imem, piId);
+        if ( piId == 1 ) // reset input
+        {
+          assert ( !Abc_LitIsCompl(Lit) );
+        }
         // printf("imemIdx = %d, piId = %d, Val = %d\n", imemIdx, piId, 1 - Abc_LitIsCompl(Lit));
         if (imemIdx < 0) // skip if not mapped to imem
             continue;
         if (piId >= nPis)
             continue;
-        Vec_IntPush(vPis, Lit);
+        // printf("Pushing %d to the vPi vector\n", Lit);
+        Vec_IntPush(p->vPis, Lit);
     }
-    pProgram = Pdr_SetCreate(vDummy, vPis);
-
-    // 2. push the pProgram to the blocked programs
-    Vec_PtrPush( p->vBlockedPrograms, pProgram );
-
-    // 3. create the corresponding clause and add it to the solver at frame zero
-    Pdr_ManSolverAddProgramClause(p, pProgram);
-    p->nBlockedP++;
-    return 1;
+    pProgram = Pdr_SetCreate(p->vDummy, p->vPis);
+    return pProgram;
 }
 
 /**Function*************************************************************

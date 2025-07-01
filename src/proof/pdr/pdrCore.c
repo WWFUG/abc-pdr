@@ -110,17 +110,6 @@ Pdr_Set_t * Pdr_ManReduceClause( Pdr_Man_t * p, int k, Pdr_Set_t * pCube )
     // skip if there is no improvement
     if ( Vec_IntSize(vLits) == pCube->nLits )
         return NULL;
-    if ( p->pPars->fSymInit ) 
-    {
-        pCubeMin  = Pdr_SetCreateSubset( pCube, Vec_IntArray(vLits), Vec_IntSize(vLits) );
-        // also skip if using symbolic initial state and the unsat core cube intersects with init
-        if ( Pdr_SetIsInit(pCubeMin, p, -1) == 1 )
-            return NULL;
-        else 
-        {
-            return pCubeMin;
-        }
-    }
     assert( Vec_IntSize(vLits) < pCube->nLits );
     // if the cube overlaps with init, add any literal
     Vec_IntForEachEntry( vLits, Entry, i )
@@ -1321,12 +1310,27 @@ int Pdr_ManBlockCube( Pdr_Man_t * p, Pdr_Set_t * pCube )
         if ( pThis->iFrame == 0){
             // printf("Found unsafe program here!!\n");
             if (p->pPars->fRefineInit){
+                Pdr_Set_t* pProgram = Pdr_ManOblToProgram(p, pThis);
                 if(p->pBlockedProgramFile){
-                    Pdr_ManLogUnsafeProgram(p, p->pBlockedProgramFile);
+                    Pdr_ManLogUnsafeProgram(p, pProgram, p->pBlockedProgramFile);
                 }
-                Pdr_ManBlockProgram(p, pThis);
-                Pdr_OblDeref( pThis );
-                Pdr_QueuePop( p );
+                for (i=0; i<kMax; i++)
+                {
+                   Pdr_ManSolverAddProgramClause(p, pProgram, i);
+                } 
+                p->nBlockedP++;
+                if (p->pPars->fVeryVerbose)
+                    Abc_Print( 1, "Unsafe program found at frame %d.\n", p->nStartFrame );
+                i = 0;
+                // printf("nStartFrame = %d\n", p->nStartFrame);
+                while( i <= p->nStartFrame)
+                {
+                    Pdr_OblDeref( pThis );
+                    Pdr_QueuePop( p );   
+                    pThis = Pdr_QueueHead(p);
+                    assert(pThis);
+                    ++i;
+                }
                 continue;
             }
             else
